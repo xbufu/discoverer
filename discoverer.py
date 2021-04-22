@@ -55,9 +55,8 @@ def port_scan(hosts):
             futures.append(executor.submit(udp_scan, host))
 
 def tcp_scan(host):
-    socket.setdefaulttimeout(1)
+    socket.setdefaulttimeout(0.5)
     print_lock = threading.Lock()
-    discovered_ports = []
 
     def check_port(port):
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -66,8 +65,8 @@ def tcp_scan(host):
             conx = s.connect((host, port))
             with print_lock:
                 p = str(port)
+                print(host + ":" + p)
                 RESULTS[host]["ports"]["tcp"][p] = {}
-                discovered_ports.append(str(port))
             conx.close()
 
         except (ConnectionRefusedError, AttributeError, OSError):
@@ -81,8 +80,8 @@ def tcp_scan(host):
         
     q = Queue()
         
-    for x in range(200):
-        t = threading.Thread(target = threader)
+    for _ in range(200):
+        t = threading.Thread(target=threader)
         t.daemon = True
         t.start()
 
@@ -115,9 +114,9 @@ def service_scan(host):
     udp_ports = RESULTS[host]["ports"]["udp"].keys()
 
     for port in tcp_ports:
-        RESULTS[host]["ports"]["tcp"][port] = {}
+        RESULTS[host]["ports"]["tcp"][port] = {"service": "", "version": ""}
     for port in udp_ports:
-        RESULTS[host]["ports"]["udp"][port] = {}
+        RESULTS[host]["ports"]["udp"][port] = {"service": "", "version": ""}
 
     ports = ""
     scan_type = "-sV"
@@ -126,6 +125,8 @@ def service_scan(host):
         ports += ",".join(tcp_ports)
         scan_type += "S"
     if udp_ports:
+        if ports:
+            ports += ","
         ports += "U:"
         ports += ",".join(udp_ports)
         scan_type += "U"
@@ -133,7 +134,7 @@ def service_scan(host):
     if "S" in scan_type or "U" in scan_type:
         subprocess.call(["nmap", scan_type, "-Pn", "--disable-arp-ping", "-oX", f, "-p", ports, host], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    tree = ET.parse('xml')
+    tree = ET.parse(f)
     root = tree.getroot()
 
     tcp_ports = [port.attrib["portid"] for port in root.iter("port") if port.attrib["protocol"] == "tcp"]
@@ -160,19 +161,14 @@ def service_scan(host):
                         version += node.attrib["extrainfo"]
                     versions.append(version)
 
-    tcp_results = {}
     i = 0
     for port in tcp_ports:
-        tcp_results[port] = {"service": services[i], "version": versions[i]}
+        RESULTS[host]["ports"]["tcp"][port] = {"service": services[i], "version": versions[i]}
         i += 1
 
-    udp_results = {}
     for port in udp_ports:
-        udp_results[port] = {"service": services[i], "version": versions[i]}
+        RESULTS[host]["ports"]["udp"][port] = {"service": services[i], "version": versions[i]}
         i += 1
-
-    RESULTS[host]["ports"]["tcp"] = tcp_results
-    RESULTS[host]["ports"]["udp"] = udp_results
 
     os.remove(f)
     
@@ -203,7 +199,7 @@ def main():
     print(banner)
     print()
 
-    print("########## Host Discovery ##########\n")
+    print("\n########## Host Discovery ##########\n")
     hosts = host_discovery(target, exclude_ip)
     print("\t{:<30}".format("IP"))
     print('-' * 30)
@@ -220,10 +216,11 @@ def main():
         print("\t{:<20}   {:<50}".format(host, ", ".join(RESULTS[host]["OS"])))
     print()
 
-    print("########## Port Scan ##########\n")
+    print("########## Port Scan ##########")
+    print()
     port_scan(hosts)
     for host in hosts:
-        print("### " + host + " ###\n")
+        print("\n### " + host + " ###\n")
         print("\t{:<8}   {:<8}".format("PROTOCOL", "PORT"))
         print('-' * 40)
         for port in RESULTS[host]["ports"]["tcp"].keys():
