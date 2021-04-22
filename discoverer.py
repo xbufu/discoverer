@@ -198,12 +198,10 @@ def main():
     | |  | || |  \___ \| |   | |  | |\ \/ / |  __| |  _  /|  __| |  _  / 
     | |__| || |_ ____) | |___| |__| | \  /  | |____| | \ \| |____| | \ \ 
     |_____/_____|_____/ \_____\____/   \/   |______|_|  \_\______|_|  \_\
-
-                                                                  by bufu  
-
     """
 
     print(banner)
+    print()
 
     print("########## Host Discovery ##########\n")
     hosts = host_discovery(target, exclude_ip)
@@ -234,10 +232,10 @@ def main():
             print("\t{:<8}   {:<8}".format("udp", port))
     print()
     
-    print("########## Service Detection ##########\n")
+    print("########## Service Detection ##########")
     service_detection(hosts)
     for host in hosts:
-        print("### " + host + " ###\n")
+        print("\n### " + host + " ###\n")
         print("\t{:<8}   {:<8}   {:<14}   {:<14}".format("PROTOCOL", "PORT", "SERVICE", "VERSION"))
         print('-' * 100)
         for port in RESULTS[host]["ports"]["tcp"].keys():
