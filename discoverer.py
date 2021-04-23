@@ -65,7 +65,7 @@ def tcp_scan(host):
             conx = s.connect((host, port))
             with print_lock:
                 p = str(port)
-                print(host + ":" + p)
+                print(host + ":tcp:" + p)
                 RESULTS[host]["ports"]["tcp"][p] = {}
             conx.close()
 
@@ -119,7 +119,7 @@ def service_scan(host):
         RESULTS[host]["ports"]["udp"][port] = {"service": "", "version": ""}
 
     ports = ""
-    scan_type = "-sV"
+    scan_type = "-s"
     if tcp_ports:
         ports += "T:"
         ports += ",".join(tcp_ports)
@@ -132,7 +132,7 @@ def service_scan(host):
         scan_type += "U"
 
     if "S" in scan_type or "U" in scan_type:
-        subprocess.call(["nmap", scan_type, "-Pn", "--disable-arp-ping", "-oX", f, "-p", ports, host], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        RESULTS[host]["nmap_output"] = subprocess.check_output(["nmap", scan_type, "-sCV", "--version-all", "--open", "-Pn", "--disable-arp-ping", "-oX", f, "-p", ports, host], stderr=subprocess.DEVNULL).decode()
 
     tree = ET.parse(f)
     root = tree.getroot()
@@ -223,23 +223,20 @@ def main():
     for host in hosts:
         print("\n### " + host + " ###\n")
         print("\t{:<8}   {:<8}".format("PROTOCOL", "PORT"))
-        print('-' * 40)
+        print('-' * 30)
         for port in RESULTS[host]["ports"]["tcp"].keys():
             print("\t{:<8}   {:<8}".format("tcp", port))
         for port in RESULTS[host]["ports"]["udp"].keys():
             print("\t{:<8}   {:<8}".format("udp", port))
     print()
     
-    print("########## Service Detection ##########")
+    print("########## Service Detection & Script Scan ##########")
     service_detection(hosts)
     for host in hosts:
         print("\n### " + host + " ###\n")
-        print("\t{:<8}   {:<8}   {:<14}   {:<14}".format("PROTOCOL", "PORT", "SERVICE", "VERSION"))
-        print('-' * 100)
-        for port in RESULTS[host]["ports"]["tcp"].keys():
-            print("\t{:<8}   {:<8}   {:<14}   {:<14}".format("tcp", port, RESULTS[host]["ports"]["tcp"][port]["service"], RESULTS[host]["ports"]["tcp"][port]["version"]))
-        for port in RESULTS[host]["ports"]["udp"].keys():
-            print("\t{:<8}   {:<8}   {:<14}   {:<14}".format("udp", port, RESULTS[host]["ports"]["udp"][port]["service"], RESULTS[host]["ports"]["udp"][port]["version"]))
+        print(RESULTS[host]["nmap_output"])
+        print("#" * 50)
+        print("\n\n")
 
 if __name__ == "__main__":
     main()
